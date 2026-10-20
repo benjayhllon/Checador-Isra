@@ -1,7 +1,7 @@
 // Guarda la app en el celular: abre al instante y el checador funciona aunque no haya internet
 // (las checadas se guardan y se mandan solas cuando regresa la señal).
 // Los datos siempre vienen de internet (de tu Google Sheet).
-const VERSION = 'isra-v2';
+const VERSION = 'isra-v3';
 const ARCHIVOS = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

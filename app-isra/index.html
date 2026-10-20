@@ -13,6 +13,7 @@
 <title>Isra</title>
 <style>
  #modulo{position:fixed;inset:0;width:100%;height:100%;border:0;background:#16120f;z-index:50;display:none}
+ #modulo.escondido{opacity:0;pointer-events:none;z-index:-1}
  #moduloPortada{position:fixed;inset:0;z-index:51;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#16120f;color:#b9b0a5;font:15px system-ui,sans-serif}
  #moduloPortada img{width:96px;height:96px}
 </style>
@@ -91,20 +92,42 @@ window.google = {script: {get run() {
   return p;
 }}};
 // Módulos (🔒 deudas, rol, nómina, bodega): se abren adentro de la app desde Apps Script.
+// Truco de velocidad: en el celular del patrón/encargada el 🔒 se va cargando escondido desde que abre la app,
+// así al tocarlo aparece al instante.
+var MOD_ACTUAL = '', MOD_CARGADO = '', MOD_LISTO = false;
+function urlModulo(m) { return APP_URL + '?app=1&dev=' + encodeURIComponent(DEV) + '&m=' + encodeURIComponent(m); }
+function ISRA_PRECARGAR(m) {
+  var f = document.getElementById('modulo');
+  if (!f || MOD_ACTUAL || MOD_CARGADO === m || !navigator.onLine) return;
+  MOD_CARGADO = m; MOD_LISTO = false; f.classList.add('escondido'); f.style.display = 'block'; f.src = urlModulo(m);
+}
 function ISRA_MODULO(m) {
   var f = document.getElementById('modulo'), pt = document.getElementById('moduloPortada');
-  if (!m) { f.style.display = 'none'; pt.style.display = 'none'; f.src = 'about:blank'; return; }
-  pt.style.display = 'flex'; f.style.display = 'block';
-  f.src = APP_URL + '?app=1&dev=' + encodeURIComponent(DEV) + '&m=' + encodeURIComponent(m);
-  setTimeout(function () { pt.style.display = 'none'; }, 15000);
+  if (!m) {
+    var antes = MOD_ACTUAL || MOD_CARGADO; MOD_ACTUAL = ''; pt.style.display = 'none';
+    f.classList.add('escondido'); MOD_CARGADO = '';
+    if (antes === 'deudas') setTimeout(function () { ISRA_PRECARGAR('deudas'); }, 400); else { f.style.display = 'none'; f.src = 'about:blank'; }
+    return;
+  }
+  MOD_ACTUAL = m; f.style.display = 'block';
+  if (MOD_CARGADO === m && MOD_LISTO) { f.classList.remove('escondido'); }
+  else {
+    pt.style.display = 'flex'; f.classList.remove('escondido');
+    if (MOD_CARGADO !== m) { MOD_CARGADO = m; MOD_LISTO = false; f.src = urlModulo(m); }
+    setTimeout(function () { pt.style.display = 'none'; }, 15000);
+  }
   try { history.pushState({modulo: m}, ''); } catch (e) {}
 }
 window.addEventListener('message', function (e) {
   var d = e.data; if (!d || typeof d !== 'object' || !d.isra) return;
-  if (d.isra === 'listo' && e.source !== window) document.getElementById('moduloPortada').style.display = 'none';
+  if (d.isra === 'listo' && e.source !== window) { MOD_LISTO = true; document.getElementById('moduloPortada').style.display = 'none'; }
   if (d.isra === 'ir') { if (d.m) ISRA_MODULO(d.m); else { if (history.state && history.state.modulo) history.back(); else ISRA_MODULO(''); } }
 });
-window.addEventListener('popstate', function () { ISRA_MODULO(''); });
+window.addEventListener('popstate', function () { if (MOD_ACTUAL) ISRA_MODULO(''); });
+// ¿Es el celular del patrón o la encargada? Entonces se precarga el 🔒 (los colaboradores no gastan datos en esto).
+window.addEventListener('load', function () {
+  setTimeout(function () { ISRA_LLAMAR('deudasEsAdmin', [DEV]).then(function (si) { if (si) ISRA_PRECARGAR('deudas'); }, function () {}); }, 800);
+});
 if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 </script>
 <script>
