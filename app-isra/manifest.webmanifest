@@ -1,0 +1,22 @@
+{
+  "name": "Hamburguesas Isra",
+  "short_name": "Isra",
+  "description": "Checador, rol, nómina y bodega de Hamburguesas Isra",
+  "lang": "es-MX",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16120f",
+  "theme_color": "#16120f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Checador", "url": "./", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "Deudas y rol (🔒)", "short_name": "🔒 Deudas", "url": "./?m=deudas", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "Bodega (compu)", "short_name": "Bodega", "url": "./?m=bodega", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
+  ]
+}

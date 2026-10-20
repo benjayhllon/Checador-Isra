@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Isra</title>
+<meta name="theme-color" content="#16120f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Isra">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+ :root{--bg:#16120f;--txt:#f2ece4;--sub:#b9b0a5;--oro:#e0b04a}
+ html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+ #app{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:var(--bg)}
+ #portada{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);z-index:2;transition:opacity .25s;text-align:center;padding:24px}
+ #portada img{width:120px;height:120px}
+ #portada .sub{color:var(--sub);font-size:15px}
+ .oculto{opacity:0;pointer-events:none}
+ button{font:inherit;font-weight:700;background:var(--oro);color:#1b1408;border:0;border-radius:12px;padding:12px 22px}
+ .punto{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--oro);margin:0 3px;animation:b 1s infinite alternate}
+ .punto:nth-child(2){animation-delay:.2s}.punto:nth-child(3){animation-delay:.4s}
+ @keyframes b{from{opacity:.25}to{opacity:1}}
+</style>
+</head>
+<body>
+<div id="portada">
+ <img src="icon-192.png" alt="Hamburguesas Isra">
+ <div id="estado"><span class="punto"></span><span class="punto"></span><span class="punto"></span></div>
+ <div class="sub" id="texto">Abriendo…</div>
+ <button type="button" id="reintentar" style="display:none">Reintentar</button>
+</div>
+<iframe id="app" title="Hamburguesas Isra" allow="geolocation *; camera *; microphone *; clipboard-write *; fullscreen *"></iframe>
+<script>
+// ===== CONFIGURACIÓN: el link /exec de tu app de Apps Script =====
+var APP_URL = 'PEGA_AQUI_EL_LINK_EXEC';
+// ==================================================================
+
+// Identificación fija de este celular: vive en la app instalada y ya no se pierde.
+var DEV = (function () {
+  var id = '';
+  try { id = localStorage.getItem('isra_dev') || ''; } catch (e) {}
+  if (!/^[a-zA-Z0-9_-]{16,80}$/.test(id)) {
+    id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + '_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+    try { localStorage.setItem('isra_dev', id); } catch (e) {}
+  }
+  return id;
+})();
+
+var marco = document.getElementById('app'), portada = document.getElementById('portada'), texto = document.getElementById('texto');
+var listo = false, reloj = null;
+
+function abrir(m) {
+  if (!navigator.onLine) { sinInternet(); return; }
+  listo = false;
+  portada.classList.remove('oculto');
+  document.getElementById('reintentar').style.display = 'none';
+  document.getElementById('estado').style.display = '';
+  texto.textContent = m === 'deudas' ? 'Abriendo 🔒…' : m === 'bodega' ? 'Abriendo bodega…' : 'Abriendo…';
+  var url = APP_URL + (APP_URL.indexOf('?') < 0 ? '?' : '&') + 'app=1&dev=' + encodeURIComponent(DEV) + (m ? '&m=' + encodeURIComponent(m) : '');
+  marco.src = url;
+  try { history.replaceState(null, '', m ? '?m=' + m : location.pathname); } catch (e) {}
+  clearTimeout(reloj);
+  reloj = setTimeout(function () { if (!listo) quitarPortada(); }, 12000);   // por si la página no avisa
+}
+function quitarPortada() { listo = true; portada.classList.add('oculto'); }
+function sinInternet() {
+  portada.classList.remove('oculto');
+  document.getElementById('estado').style.display = 'none';
+  texto.textContent = 'Sin internet. Conéctate a datos o WiFi y vuelve a intentar.';
+  document.getElementById('reintentar').style.display = '';
+}
+document.getElementById('reintentar').onclick = function () { abrir(param('m')); };
+window.addEventListener('online', function () { if (!listo) abrir(param('m')); });
+
+// Mensajes de la app de adentro: ya cargó, o pide ir a otra parte (checador / deudas / bodega).
+window.addEventListener('message', function (e) {
+  var d = e.data;
+  if (!d || typeof d !== 'object' || !d.isra) return;
+  if (d.isra === 'listo') quitarPortada();
+  if (d.isra === 'ir') abrir(d.m || '');
+});
+
+function param(k) { var m = location.search.match(new RegExp('[?&]' + k + '=([^&]+)')); return m ? decodeURIComponent(m[1]) : ''; }
+
+if (/PEGA_AQUI/.test(APP_URL)) {
+  document.getElementById('estado').style.display = 'none';
+  texto.textContent = 'Falta poner el link de la app en index.html (APP_URL).';
+} else {
+  abrir(param('m'));
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
+</body>
+</html>
