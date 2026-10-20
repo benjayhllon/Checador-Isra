@@ -78,11 +78,14 @@ var DEV = (function () {   // identificación fija de este celular (no se pierde
   }
   return id;
 })();
+// Con señal débil no se espera de más: el PIN se revisa máximo 12 s y la checada 15 s; luego se guarda en el celular.
+var ISRA_ESPERA = {validarPin: 12000, checar: 15000, cambioCelularSelfie: 45000};
 function ISRA_LLAMAR(fn, args) {
-  var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (ctl) ctl.abort(); }, 30000);
+  var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (ctl) ctl.abort(); }, ISRA_ESPERA[fn] || 30000);
+  var red = function (e) { clearTimeout(t); throw new Error(e && e.name === 'AbortError' ? 'Se agotó el tiempo de espera (timeout).' : 'Sin conexión: revisa tu internet (network).'); };
   return fetch(APP_URL, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify({fn: fn, args: args}), redirect: 'follow', signal: ctl ? ctl.signal : undefined})
-    .then(function (r) { clearTimeout(t); if (!r.ok) throw new Error('Sin conexión con el servidor (HTTP ' + r.status + ').'); return r.json(); },
-          function (e) { clearTimeout(t); throw new Error(e && e.name === 'AbortError' ? 'Se agotó el tiempo de espera (timeout).' : 'Sin conexión: revisa tu internet (network).'); })
+    .then(function (r) { if (!r.ok) { clearTimeout(t); throw new Error('Sin conexión con el servidor (HTTP ' + r.status + ').'); }
+      return r.text().then(function (x) { clearTimeout(t); try { return JSON.parse(x); } catch (e) { throw new Error('Sin conexión con el servidor (respuesta inválida, network).'); } }, red); }, red)
     .then(function (j) { if (!j || !j.ok) throw new Error((j && j.m) || 'Error del servidor.'); return j.r; });
 }
 window.google = {script: {get run() {
@@ -129,6 +132,13 @@ window.addEventListener('load', function () {
   setTimeout(function () { ISRA_LLAMAR('deudasEsAdmin', [DEV]).then(function (si) { if (si) ISRA_PRECARGAR('deudas'); }, function () {}); }, 800);
 });
 if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}   // que el celular no borre la identificación ni las checadas guardadas
+// Android: botón "Instalar app" cuando Chrome lo permite.
+var ISRA_INSTALAR = null;
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); ISRA_INSTALAR = e; var b = document.getElementById('btnInstalar'); if (b) b.style.display = 'block'; });
+// iPhone: en Safari y en el ícono la app guarda cosas por separado. Si se usa desde Safari, al pasar al ícono pediría selfie otra vez.
+function ISRA_ES_IPHONE() { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+function ISRA_INSTALADA() { return navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches); }
 </script>
 <script>
 'use strict';
@@ -157,6 +167,7 @@ function controles(){
 }
 function tecla(t){
  if(ocupado || vista!=='vPin')return;
+ if(window.SUBIENDO_FOTO)return;
  $('error').textContent='';
  if(t==='Borrar')pin=pin.slice(0,-1);else if(/^\d$/.test(t) && pin.length<4)pin+=t;
  pintarPuntos();if(pin.length===4)enviarPin();
@@ -208,7 +219,10 @@ function nuevoId(){
  return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2)+'_'+Math.random().toString(36).slice(2);
 }
 // Pide la ubicación actual del celular (sin usar una guardada) y la entrega a listo(ubic) o falla(mensaje).
-function obtenerUbicacion(listo,falla){
+function obtenerUbicacion(listo0,falla0){
+ var hecho=false,perro=setTimeout(function(){fin(falla0,'El GPS no respondió. Revisa que la ubicación esté activada y permitida, y reintenta.');},30000);
+ function fin(f,x){if(hecho)return;hecho=true;clearTimeout(perro);f(x);}
+ var listo=function(u){fin(listo0,u);},falla=function(m){fin(falla0,m);};
  if(!navigator.geolocation){falla('Este celular o navegador no permite leer la ubicación. Usa Chrome o Safari actualizado.');return;}
  navigator.geolocation.getCurrentPosition(function(pos){
   listo({lat:pos.coords.latitude,lng:pos.coords.longitude,precision:pos.coords.accuracy});
@@ -272,7 +286,7 @@ document.querySelector('main').insertBefore(aviso,$('vPin'));
 aviso.onclick=function(){if(leerLista(RECHAZOS).length){guardarLista(RECHAZOS,[]);pintarAviso();}};
 function pintarAviso(){
  var c=leerLista(COLA).length, r=leerLista(RECHAZOS), t='';
- if(c)t='📤 '+c+(c===1?' checada guardada':' checadas guardadas')+' en este celular. Se enviarán solas cuando haya internet. No cierres esta página.';
+ if(c)t='📤 '+c+(c===1?' checada guardada':' checadas guardadas')+' en este celular. Se envían solas cuando haya internet. Si cierras la app, ábrela cuando tengas señal (antes de 3 días).';
  if(r.length)t+=(t?'\n':'')+'⚠️ No se guardaron: '+r.map(function(x){return x.hora+' '+x.tipo.toLowerCase()+' — '+x.msg;}).join(' | ')+' (Toca para ocultar.)';
  aviso.textContent=t;aviso.style.display=t?'block':'none';
 }
@@ -283,22 +297,47 @@ function encolar(it){
 }
 function quitarDeCola(id){guardarLista(COLA,leerLista(COLA).filter(function(x){return x.id!==id;}));}
 function enviarPendientes(){
- if(enviando||!EN_APPS_SCRIPT||navigator.onLine===false){pintarAviso();return;}
- var l=leerLista(COLA);if(!l.length){pintarAviso();return;}
+ if(enviando){pintarAviso();return;}
+ if(!EN_APPS_SCRIPT||navigator.onLine===false){pintarAviso();terminarEnvio();return;}
+ var l=leerLista(COLA);if(!l.length){pintarAviso();terminarEnvio();return;}
  var it=l[0];enviando=true;
  google.script.run.withSuccessHandler(function(res){
   enviando=false;
-  if(res&&!res.ok&&res.reintentar){pintarAviso();return;}
+  if(res&&!res.ok&&res.reintentar){if(!contarIntento(it,res.msg)){pintarAviso();terminarEnvio();return;}}
   quitarDeCola(it.id);
   if(!res||!res.ok){var r=leerLista(RECHAZOS);r.push({hora:horaTexto(it.ms),tipo:it.tipo,msg:(res&&res.msg)||'Error desconocido'});guardarLista(RECHAZOS,r.slice(-10));}
   pintarAviso();enviarPendientes();
- }).withFailureHandler(function(){enviando=false;pintarAviso();})
+ }).withFailureHandler(function(e){enviando=false;
+  if(!sinRed(e)&&contarIntento(it,(e&&e.message)||'Error del servidor')){pintarAviso();enviarPendientes();return;}
+  pintarAviso();terminarEnvio();})
  .checar(it.pin,it.tipo,it.id,it.ubic,it.celular,it.ms);
 }
+// Una checada que el servidor no puede guardar (error raro) se reintenta 6 veces; luego se avisa y se sigue con las demás.
+function contarIntento(it,m){
+ var l=leerLista(COLA),x=l.find(function(y){return y.id===it.id;});if(!x)return true;
+ x.intentos=(x.intentos||0)+1;
+ if(x.intentos<6){guardarLista(COLA,l);return false;}
+ quitarDeCola(it.id);var r=leerLista(RECHAZOS);r.push({hora:horaTexto(it.ms),tipo:it.tipo,msg:m});guardarLista(RECHAZOS,r.slice(-10));return true;
+}
+// c) Antes de revisar un PIN se mandan primero las checadas guardadas (así la SALIDA no se bloquea por una ENTRADA guardada).
+var ESPERAN=[];
+function terminarEnvio(){var l=ESPERAN;ESPERAN=[];l.forEach(function(f){try{f();}catch(e){}});}
+function vaciarCola(listo){
+ if(!leerLista(COLA).length||navigator.onLine===false||!EN_APPS_SCRIPT){listo();return;}
+ var ya=false,fin=function(){if(ya)return;ya=true;clearTimeout(t);listo();},t=setTimeout(fin,20000);
+ ESPERAN.push(fin);enviarPendientes();
+}
+var CONOCIDOS='isra_conocidos';
+function conocido(p){try{return (JSON.parse(localStorage.getItem(CONOCIDOS)||'{}')||{})[p]||null;}catch(e){return null;}}
+function recordar(p,res){try{var o=JSON.parse(localStorage.getItem(CONOCIDOS)||'{}')||{};o[p]={nombre:res.nombre,ultimo:res.ultimo?res.ultimo.tipo:'',cuando:Date.now()};
+ var ks=Object.keys(o).sort(function(a,b){return o[b].cuando-o[a].cuando;});ks.slice(6).forEach(function(k){delete o[k];});localStorage.setItem(CONOCIDOS,JSON.stringify(o));}catch(e){}}
+function anotarChecada(p,tipo){try{var o=JSON.parse(localStorage.getItem(CONOCIDOS)||'{}')||{};if(o[p]){o[p].ultimo=tipo;o[p].cuando=Date.now();localStorage.setItem(CONOCIDOS,JSON.stringify(o));}}catch(e){}}
+function ultimoGuardado(p){var l=leerLista(COLA).filter(function(x){return x.pin===p;});return l.length?l[l.length-1].tipo:'';}
 function modoSinInternet(p){
- identidad={sinInternet:true,puedeEntrada:true,puedeSalida:true};pin=p;
- $('nombre').textContent='Sin internet';
- $('ultimo').textContent='Tu checada se guardará en este celular con la hora de ahora y se enviará sola cuando regrese la señal. Elige bien: ENTRADA o SALIDA.';
+ var k=conocido(p),ult=ultimoGuardado(p)||(k&&Date.now()-k.cuando<14*3600000&&k.ultimo)||'';
+ identidad={sinInternet:true,puedeEntrada:ult!=='ENTRADA',puedeSalida:ult!=='SALIDA'||!k};pin=p;
+ $('nombre').textContent=k?k.nombre:'Sin internet';
+ $('ultimo').textContent=(k?'📵 Sin internet. ':'📵 Sin internet y este celular no conoce ese PIN: revisa que esté bien escrito. ')+'Tu checada se guarda en este celular con la hora de ahora y se envía sola cuando regrese la señal. Elige bien: ENTRADA o SALIDA.';
  mostrar('vElegir');controles();
 }
 function enviarPin(){
@@ -306,14 +345,19 @@ function enviarPin(){
  var v=version,pinEnviado=pin;
  if(navigator.onLine===false){modoSinInternet(pinEnviado);return;}
  ocupado=true;controles();
+ if(leerLista(COLA).length){$('cargando').textContent='Enviando checadas guardadas…';vaciarCola(function(){$('cargando').textContent='Revisando…';if(v!==version)return;validar();});return;}
+ validar();
+ function validar(){
  if(typeof preInfo==='function')preInfo(pinEnviado,v);   // cuenta y rol se piden AL MISMO TIEMPO que el PIN (más rápido)
  servidor('validarPin',[pinEnviado,CELULAR],function(res){
   if(v!==version)return;ocupado=false;
   if(!res||!res.ok){reiniciar();$('error').textContent=res&&res.msg||'No se pudo validar el PIN.';if(res&&/registrado en otro celular/.test(res.msg||''))ofrecerCambioCel(pinEnviado);if(res&&/^📸/.test(res.msg||''))ofrecerSelfie(pinEnviado);return;}
-  identidad=res;pin=pinEnviado;
+  identidad=res;pin=pinEnviado;if(!res.por)recordar(pinEnviado,res);
+  var g=ultimoGuardado(pinEnviado);   // si todavía hay una checada guardada sin enviar, manda esa
+  if(g){identidad.puedeEntrada=g!=='ENTRADA';identidad.puedeSalida=g==='ENTRADA';}
   $('nombre').textContent=res.nombre;
-  $('ultimo').textContent=res.ultimo?'Última checada de esta jornada: '+res.ultimo.tipo.toLowerCase()+' a las '+res.ultimo.hora:'No tienes checadas en esta jornada.';
-  if(!res.puedeEntrada&&!res.puedeSalida)$('ultimo').textContent+=' Jornada cerrada.';
+  $('ultimo').textContent=g?'Tienes una '+g.toLowerCase()+' guardada en este celular que se enviará sola.':res.ultimo?'Última checada de esta jornada: '+res.ultimo.tipo.toLowerCase()+' a las '+res.ultimo.hora:'No tienes checadas en esta jornada.';
+  if(!identidad.puedeEntrada&&!identidad.puedeSalida)$('ultimo').textContent+=' Jornada cerrada.';
   if(res.por)$('ultimo').textContent+=' (Checando con el celular de '+res.por+'.)';
   mostrar('vElegir');controles();cargarCuenta(pinEnviado,v);
  },function(e){
@@ -321,6 +365,7 @@ function enviarPin(){
   if(sinRed(e)){modoSinInternet(pinEnviado);return;}
   reiniciar();$('error').textContent=e.message||'Sin conexión, intenta otra vez.';
  });
+ }
 }
 // 📱 Se borró la app / cambió de celular o de navegador: pide el cambio y Esme o el patrón lo aprueban en 🔒.
 function ofrecerCambioCel(p){
@@ -335,13 +380,13 @@ function ofrecerSelfie(p){
  var b=document.createElement('button');b.type='button';b.className='tecla chica';b.style.cssText='width:100%;margin-top:10px;font-size:18px;padding:14px';
  b.textContent='📸 Tomar selfie';$('error').appendChild(b);$('error').appendChild(inp);
  b.onclick=function(){inp.click();};
- inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;b.disabled=true;b.textContent='Enviando foto…';
+ inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;b.disabled=true;b.textContent='Enviando foto…';window.SUBIENDO_FOTO=true;
   reducirFoto(f,640,function(b64){
-   if(!b64){b.disabled=false;b.textContent='📸 Tomar selfie';return;}
-   servidor('cambioCelularSelfie',[p,CELULAR,b64],function(r){
+   if(!b64){window.SUBIENDO_FOTO=false;b.disabled=false;b.textContent='📸 Tomar selfie';return;}
+   servidor('cambioCelularSelfie',[p,CELULAR,b64],function(r){window.SUBIENDO_FOTO=false;
     if(r&&r.ok){$('error').textContent='✅ '+r.msg+' Pon tu PIN otra vez para checar.';}
     else{$('error').textContent=(r&&r.msg)||'No se pudo.';if(r&&/registrado en otro celular/.test(r.msg||''))ofrecerCambioCel(p);}
-   },function(e){b.disabled=false;b.textContent='📸 Tomar selfie';$('error').firstChild.textContent=(e&&e.message)||'Sin conexión, intenta otra vez.';});
+   },function(e){window.SUBIENDO_FOTO=false;b.disabled=false;b.textContent='📸 Tomar selfie';$('error').firstChild.textContent=(e&&e.message)||'Sin conexión, intenta otra vez.';});
   });};
 }
 function reducirFoto(file,max,listo){
@@ -360,7 +405,7 @@ function guardarSinInternet(pet,ubic,v){
  pendiente=null;pin='';identidad=null;pintarPuntos();
  $('tipoListo').textContent=(pet.tipo==='ENTRADA'?'Entrada':'Salida')+' guardada en el celular';
  $('horaListo').textContent=horaTexto(pet.ms);
- $('msgListo').textContent='Sin internet. Se enviará sola cuando regrese la señal. No cierres esta página.';
+ $('msgListo').textContent='Sin internet. Se envía sola cuando regrese la señal. Puedes cerrar la app; ábrela cuando tengas señal (antes de 3 días).';
  mostrar('vListo');controles();pintarAviso();
  clearTimeout(temporizador);temporizador=setTimeout(function(){if(v===version)reiniciar();},8000);
 }
@@ -374,7 +419,7 @@ function registrar(tipo){
  var v=version,pet=pendiente;
  obtenerUbicacion(function(ubic){
   if(v!==version)return;
-  if(identidad.sinInternet||navigator.onLine===false){guardarSinInternet(pet,ubic,v);return;}
+  if(identidad.sinInternet||navigator.onLine===false){if(!(ubic.precision<=100)){ocupado=false;$('errorRegistro').textContent='Tu ubicación no es precisa (±'+Math.round(ubic.precision||0)+' m). Acércate a una ventana o sal un momento y reintenta.';controles();return;}guardarSinInternet(pet,ubic,v);return;}
   $('guardando').textContent='Guardando checada…';
   servidor('checar',[pet.pin,pet.tipo,pet.id,ubic,CELULAR],function(res){
    if(v!==version)return;ocupado=false;
@@ -382,19 +427,26 @@ function registrar(tipo){
     if(!res||res.reintentar||res.ubicacion){$('errorRegistro').textContent=res&&res.msg||'No se confirmó el registro. Reintenta la misma checada.';controles();return;}
     reiniciar();$('error').textContent=res.msg;return;
    }
-   pendiente=null;pin='';identidad=null;pintarPuntos();
+   anotarChecada(pet.pin,res.tipo||pet.tipo);pendiente=null;pin='';identidad=null;pintarPuntos();
    $('tipoListo').textContent=res.repetida?'Ya estaba registrada':res.tipo==='ENTRADA'?'Entrada registrada':'Salida registrada';
    $('horaListo').textContent=res.hora;$('msgListo').textContent=res.msg+(typeof textoPuestoHoy==='function'&&res.tipo==='ENTRADA'?textoPuestoHoy():'');mostrar('vListo');controles();
    clearTimeout(temporizador);temporizador=setTimeout(function(){if(v===version)reiniciar();},8000);
   },function(e){
    if(v!==version)return;
-   if(sinRed(e)){guardarSinInternet(pet,ubic,v);return;}
+   if(sinRed(e)){if(!(ubic.precision<=100)){ocupado=false;$('errorRegistro').textContent='Sin internet y tu ubicación no es precisa. Acércate a una ventana y reintenta.';controles();return;}guardarSinInternet(pet,ubic,v);return;}
    ocupado=false;
    $('errorRegistro').textContent='No se confirmó la respuesta. Reintenta la misma checada; si ya se guardó, no se duplicará. '+(e.message||'');controles();
   });
  },function(msg){if(v!==version)return;ocupado=false;$('errorRegistro').textContent=msg;controles();});
 }
 window.addEventListener('online',function(){setTimeout(enviarPendientes,2000);});
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+// 📲 Abrieron el link viejo (no la app): se les invita a instalar la app nueva.
+(function(){if(ISRA_APP.app||!EN_APPS_SCRIPT)return;
+ var a=document.createElement('a');a.href='https://benjayhllon.github.io/Checador-Isra/app-isra/';a.target='_blank';a.rel='noopener';
+ a.textContent='📲 Ya hay app nueva de Isra: abre más rápido y checa sin internet. Toca aquí para instalarla.';
+ a.style.cssText='display:block;margin-top:12px;padding:12px;border-radius:12px;background:#12301f;color:#9fe3b8;font-size:15px;text-align:center;text-decoration:none;font-weight:700';
+ document.querySelector('main').insertBefore(a,$('vPin'));})();
 document.addEventListener('visibilitychange',function(){if(!document.hidden)enviarPendientes();});
 setInterval(enviarPendientes,30000);
 pintarAviso();enviarPendientes();
@@ -416,7 +468,7 @@ pintarAviso();enviarPendientes();
 // ===== MI CUENTA: el colaborador ve lo que se le descontará esta semana (solo la suya, después de su PIN) =====
 var cuenta=document.createElement('div');cuenta.id='miCuenta';cuenta.setAttribute('role','status');
 cuenta.style.cssText='text-align:left;margin:0 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:15px';
-$('btnEntrada').parentNode.insertBefore(cuenta,$('btnEntrada'));cuenta.style.display='none';
+$('btnCambiar').parentNode.insertBefore(cuenta,$('btnCambiar'));cuenta.style.display='none';
 var NOMB={DEUDA:'Ticket',VALE:'Vale',INCIDENCIA:'Reporte',AJUSTE:'Ajuste',RETARDOS:'Retardos'};
 function pesos(n){n=Number(n)||0;return (n<0?'-':'')+'$'+Math.abs(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function escH(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -455,7 +507,7 @@ function pintarCuenta(r){
 // ===== MI ROL: lo que publicó el patrón en 🧩 Acomodo (solo lo publicado; si no hay, "ROL PENDIENTE") =====
 var rolCaja=document.createElement('div');rolCaja.id='miRol';rolCaja.setAttribute('role','status');
 rolCaja.style.cssText='text-align:left;margin:0 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:15px;display:none';
-$('btnEntrada').parentNode.insertBefore(rolCaja,$('btnEntrada'));
+$('btnCambiar').parentNode.insertBefore(rolCaja,$('btnCambiar'));
 var ROL_HOY=null;
 function fechaRol(f){var p=String(f).split('-');return +p[2]+' '+['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+p[1]-1];}
 function textoPuestoHoy(){return ROL_HOY&&ROL_HOY.t==='TRABAJA'?' Hoy te corresponde: '+ROL_HOY.puesto+', en '+ROL_HOY.area+'.':ROL_HOY&&ROL_HOY.t==='DESCANSO'?' Ojo: según tu rol hoy descansas.':'';}
@@ -510,7 +562,7 @@ function obtenerUbicacion(listo,falla){
 // ===== CARNES (miércoles en CEDIS): botones 🥩 solo para quien le toca. Sin retardo. Necesita internet. =====
 var carnesCaja=document.createElement('div');carnesCaja.id='miCarnes';carnesCaja.setAttribute('role','status');
 carnesCaja.style.cssText='text-align:left;margin:0 0 14px;padding:12px;border:2px solid #b8860b;border-radius:12px;font-size:15px;display:none';
-(function(){var antes=$('miCuenta')||$('btnEntrada');antes.parentNode.insertBefore(carnesCaja,antes);})();   // arriba de todo: es lo más urgente ese día
+$('btnEntrada').parentNode.insertBefore(carnesCaja,$('btnEntrada'));   // arriba de todo: es lo más urgente ese día
 var CARNES=null;
 function pintarCarnes(c){
  CARNES=c;carnesCaja.style.display='none';carnesCaja.innerHTML='';if(!c)return;
@@ -551,5 +603,29 @@ function checarCarnesUI(tipo){
 
 <iframe id="modulo" title="Isra" allow="geolocation *; camera *; microphone *; clipboard-write *; fullscreen *"></iframe>
 <div id="moduloPortada"><img src="icon-192.png" alt=""><div>Abriendo…</div></div>
+<button type="button" id="btnInstalar" style="display:none;width:100%;margin-top:12px;padding:14px;border:0;border-radius:14px;background:#e0b04a;color:#1b1408;font:800 17px system-ui,sans-serif">📲 Instalar la app en este celular</button>
+<div id="iosInstalar" style="display:none;position:fixed;inset:0;z-index:60;background:#16120f;color:#f2ece4;font:17px/1.45 system-ui,sans-serif;padding:28px 22px;overflow:auto">
+ <img src="icon-192.png" alt="" style="width:72px;height:72px;border-radius:16px">
+ <h2 style="margin:12px 0 6px">Primero instala la app 📲</h2>
+ <p style="color:#b9b0a5;margin:0 0 16px">En iPhone hay que ponerla en tu pantalla de inicio. Si checas desde Safari, después te volvería a pedir selfie.</p>
+ <ol style="padding-left:22px;margin:0 0 18px">
+  <li>Toca el botón <b>compartir</b> <span style="display:inline-block;border:1px solid #f2ece4;border-radius:5px;padding:0 6px">⬆</span> (abajo, en Safari).</li>
+  <li>Baja y toca <b>"Agregar a pantalla de inicio"</b>.</li>
+  <li>Toca <b>Agregar</b>.</li>
+  <li>Cierra Safari y abre el ícono <b>🍔 Isra</b>.</li>
+ </ol>
+ <button type="button" id="iosSeguir" style="width:100%;padding:13px;border:1px solid #3a332c;border-radius:14px;background:transparent;color:#b9b0a5;font-size:15px">Seguir en Safari (no recomendado)</button>
+</div>
+<script>
+(function () {
+  var b = document.getElementById('btnInstalar'), m = document.querySelector('main'); if (m && m.children[1]) m.insertBefore(b, m.children[1]);
+  b.onclick = function () { if (!ISRA_INSTALAR) return; ISRA_INSTALAR.prompt(); ISRA_INSTALAR = null; b.style.display = 'none'; };
+  var seguir = false; try { seguir = sessionStorage.getItem('isra_ios_seguir') === '1'; } catch (e) {}
+  if (ISRA_ES_IPHONE() && !ISRA_INSTALADA() && !seguir && !/[?&]m=/.test(location.search)) {
+    var v = document.getElementById('iosInstalar'); v.style.display = 'block';
+    document.getElementById('iosSeguir').onclick = function () { try { sessionStorage.setItem('isra_ios_seguir', '1'); } catch (e) {} v.style.display = 'none'; };
+  }
+})();
+</script>
 <script>(function(){var m=(location.search.match(/[?&]m=([^&]+)/)||[])[1];if(m)ISRA_MODULO(decodeURIComponent(m));})();</script>
 </body></html>
