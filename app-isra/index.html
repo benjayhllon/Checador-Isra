@@ -2,45 +2,73 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Isra</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#16120f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Isra">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Isra</title>
 <style>
- :root{--bg:#16120f;--txt:#f2ece4;--sub:#b9b0a5;--oro:#e0b04a}
- html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
- #app{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:var(--bg)}
- #portada{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);z-index:2;transition:opacity .25s;text-align:center;padding:24px}
- #portada img{width:120px;height:120px}
- #portada .sub{color:var(--sub);font-size:15px}
- .oculto{opacity:0;pointer-events:none}
- button{font:inherit;font-weight:700;background:var(--oro);color:#1b1408;border:0;border-radius:12px;padding:12px 22px}
- .punto{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--oro);margin:0 3px;animation:b 1s infinite alternate}
- .punto:nth-child(2){animation-delay:.2s}.punto:nth-child(3){animation-delay:.4s}
- @keyframes b{from{opacity:.25}to{opacity:1}}
+ #modulo{position:fixed;inset:0;width:100%;height:100%;border:0;background:#16120f;z-index:50;display:none}
+ #moduloPortada{position:fixed;inset:0;z-index:51;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#16120f;color:#b9b0a5;font:15px system-ui,sans-serif}
+ #moduloPortada img{width:96px;height:96px}
+</style>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checador Isra</title>
+<style>
+:root{--bg:#16120f;--panel:#1f1b17;--line:#3a332c;--txt:#f2ece4;--sub:#b9b0a5;--oro:#e0b04a;--ok:#3fae6a;--mal:#d9534f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Roboto,sans-serif}
+.app{max-width:460px;margin:0 auto;padding:24px 18px 30px;min-height:100vh;display:flex;flex-direction:column}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;border-bottom:2px solid var(--txt);padding-bottom:12px}
+.marca{color:var(--oro);font-weight:800;letter-spacing:.12em;font-size:14px;text-transform:uppercase}
+.fecha{color:var(--sub);font-size:15px;margin-top:4px;text-transform:capitalize}
+.reloj{font-size:clamp(32px,9vw,44px);font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+h1{font-size:30px;margin:22px 0 4px}.ayuda{color:var(--sub);margin:0 0 18px;font-size:16px}
+.puntos{display:flex;justify-content:center;gap:16px;margin:6px 0 22px}
+.punto{width:18px;height:18px;border-radius:50%;border:2px solid var(--txt)}.punto.lleno{background:var(--txt)}
+.teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.tecla{background:var(--panel);border:1px solid var(--line);border-radius:16px;color:var(--txt);font-size:30px;font-weight:700;padding:18px 0}
+.tecla:active{background:#2c2620}.tecla.chica{font-size:16px;color:var(--sub)}.oculto{display:none!important}
+.tarjeta{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;margin-top:22px;text-align:center}
+.nombre{font-size:26px;font-weight:800;margin:4px 0 6px}.ult{color:var(--sub);font-size:15px;margin-bottom:18px}
+.boton{width:100%;border:0;border-radius:16px;font-size:22px;font-weight:800;padding:20px;margin-top:10px;color:#fff}
+.entrada{background:var(--ok)}.salida{background:var(--mal)}
+.secundario{background:transparent;color:var(--sub);border:1px solid var(--line);font-size:16px;padding:14px}
+.msg{font-size:22px;font-weight:700;margin:10px 0}.grande{font-size:56px;font-weight:800}
+.error{color:#ff9793;text-align:center;min-height:22px;margin-bottom:8px}
+.cargando{color:var(--sub);text-align:center;margin-top:16px}
+.logo{width:76px;height:76px;display:block;margin-bottom:6px}
+button{cursor:pointer}button:disabled{opacity:.4;cursor:wait}button:focus-visible{outline:3px solid var(--oro);outline-offset:3px}
 </style>
 </head>
 <body>
-<div id="portada">
- <img src="icon-192.png" alt="Hamburguesas Isra">
- <div id="estado"><span class="punto"></span><span class="punto"></span><span class="punto"></span></div>
- <div class="sub" id="texto">Abriendo…</div>
- <button type="button" id="reintentar" style="display:none">Reintentar</button>
-</div>
-<iframe id="app" title="Hamburguesas Isra" allow="geolocation *; camera *; microphone *; clipboard-write *; fullscreen *"></iframe>
+<main class="app">
+<header><div><img class="logo" src="icon-192.png" alt="Hamburguesas Isra"><div class="fecha" id="fecha"></div></div><div class="reloj" id="reloj">--:--</div></header>
+<section id="vPin"><h1>Escribe tu PIN</h1><p class="ayuda">Son los 4 números que te dio el encargado.</p>
+<div class="puntos" id="puntos" role="status" aria-label="0 de 4 dígitos"></div>
+<div class="error" id="error" role="alert"></div><div class="teclado" id="teclado"></div>
+<div class="cargando oculto" id="cargando" role="status">Revisando…</div></section>
+<section id="vElegir" class="oculto"><div class="tarjeta"><div class="ayuda" style="margin:0">Hola</div>
+<div class="nombre" id="nombre"></div><div class="ult" id="ultimo"></div>
+<button type="button" class="boton entrada" id="btnEntrada">Checar ENTRADA</button>
+<button type="button" class="boton salida" id="btnSalida">Checar SALIDA</button>
+<div class="cargando oculto" id="guardando" role="status">Guardando checada…</div>
+<div class="error" id="errorRegistro" role="alert"></div>
+<button type="button" class="boton secundario" id="btnReintentar" hidden>Reintentar la misma checada</button>
+<button type="button" class="boton secundario" id="btnCambiar">No soy yo / Volver</button></div></section>
+<section id="vListo" class="oculto"><div class="tarjeta"><div class="ayuda" style="margin:0" id="tipoListo"></div>
+<div class="grande" id="horaListo"></div><div class="msg" id="msgListo" role="status"></div>
+<button type="button" class="boton secundario" id="btnListo">Listo</button></div></section>
+</main>
+<script src="config.js"></script>
 <script>
-// ===== CONFIGURACIÓN: el link /exec de tu app de Apps Script =====
-var APP_URL = 'https://script.google.com/macros/s/AKfycbxSC4B_RZ_ZobwMea7xTbrkWuiy9QymSc-tlD_oc8U6GtoG28FwDpXXAjyirJ1vOZc-/exec';
-// ==================================================================
-
-// Identificación fija de este celular: vive en la app instalada y ya no se pierde.
-var DEV = (function () {
+var APP_URL = window.ISRA_URL || '';   // el link /exec se pone en config.js (una sola vez)
+var DEV = (function () {   // identificación fija de este celular (no se pierde)
   var id = '';
   try { id = localStorage.getItem('isra_dev') || ''; } catch (e) {}
   if (!/^[a-zA-Z0-9_-]{16,80}$/.test(id)) {
@@ -49,53 +77,456 @@ var DEV = (function () {
   }
   return id;
 })();
-
-var marco = document.getElementById('app'), portada = document.getElementById('portada'), texto = document.getElementById('texto');
-var listo = false, reloj = null;
-
-function abrir(m) {
-  if (!navigator.onLine) { sinInternet(); return; }
-  listo = false;
-  portada.classList.remove('oculto');
-  document.getElementById('reintentar').style.display = 'none';
-  document.getElementById('estado').style.display = '';
-  texto.textContent = m === 'deudas' ? 'Abriendo 🔒…' : m === 'bodega' ? 'Abriendo bodega…' : 'Abriendo…';
-  var url = APP_URL + (APP_URL.indexOf('?') < 0 ? '?' : '&') + 'app=1&dev=' + encodeURIComponent(DEV) + (m ? '&m=' + encodeURIComponent(m) : '');
-  marco.src = url;
-  try { history.replaceState(null, '', m ? '?m=' + m : location.pathname); } catch (e) {}
-  clearTimeout(reloj);
-  reloj = setTimeout(function () { if (!listo) quitarPortada(); }, 12000);   // por si la página no avisa
+function ISRA_LLAMAR(fn, args) {
+  var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (ctl) ctl.abort(); }, 30000);
+  return fetch(APP_URL, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify({fn: fn, args: args}), redirect: 'follow', signal: ctl ? ctl.signal : undefined})
+    .then(function (r) { clearTimeout(t); if (!r.ok) throw new Error('Sin conexión con el servidor (HTTP ' + r.status + ').'); return r.json(); },
+          function (e) { clearTimeout(t); throw new Error(e && e.name === 'AbortError' ? 'Se agotó el tiempo de espera (timeout).' : 'Sin conexión: revisa tu internet (network).'); })
+    .then(function (j) { if (!j || !j.ok) throw new Error((j && j.m) || 'Error del servidor.'); return j.r; });
 }
-function quitarPortada() { listo = true; portada.classList.add('oculto'); }
-function sinInternet() {
-  portada.classList.remove('oculto');
-  document.getElementById('estado').style.display = 'none';
-  texto.textContent = 'Sin internet. Conéctate a datos o WiFi y vuelve a intentar.';
-  document.getElementById('reintentar').style.display = '';
+window.google = {script: {get run() {
+  var ok = function () {}, mal = function () {};
+  var o = {withSuccessHandler: function (f) { ok = f; return p; }, withFailureHandler: function (f) { mal = f; return p; }, withUserObject: function () { return p; }};
+  var p = new Proxy(o, {get: function (t, k) { if (k in t) return t[k]; return function () { var a = [].slice.call(arguments); ISRA_LLAMAR(k, a).then(function (r) { ok(r); }, function (e) { mal(e); }); }; }});
+  return p;
+}}};
+// Módulos (🔒 deudas, rol, nómina, bodega): se abren adentro de la app desde Apps Script.
+function ISRA_MODULO(m) {
+  var f = document.getElementById('modulo'), pt = document.getElementById('moduloPortada');
+  if (!m) { f.style.display = 'none'; pt.style.display = 'none'; f.src = 'about:blank'; return; }
+  pt.style.display = 'flex'; f.style.display = 'block';
+  f.src = APP_URL + '?app=1&dev=' + encodeURIComponent(DEV) + '&m=' + encodeURIComponent(m);
+  setTimeout(function () { pt.style.display = 'none'; }, 15000);
+  try { history.pushState({modulo: m}, ''); } catch (e) {}
 }
-document.getElementById('reintentar').onclick = function () { abrir(param('m')); };
-window.addEventListener('online', function () { if (!listo) abrir(param('m')); });
-
-// Mensajes de la app de adentro: ya cargó, o pide ir a otra parte (checador / deudas / bodega).
 window.addEventListener('message', function (e) {
-  var d = e.data;
-  if (!d || typeof d !== 'object' || !d.isra) return;
-  if (d.isra === 'listo') quitarPortada();
-  if (d.isra === 'ir') abrir(d.m || '');
+  var d = e.data; if (!d || typeof d !== 'object' || !d.isra) return;
+  if (d.isra === 'listo' && e.source !== window) document.getElementById('moduloPortada').style.display = 'none';
+  if (d.isra === 'ir') { if (d.m) ISRA_MODULO(d.m); else { if (history.state && history.state.modulo) history.back(); else ISRA_MODULO(''); } }
 });
-
-function param(k) { var m = location.search.match(new RegExp('[?&]' + k + '=([^&]+)')); return m ? decodeURIComponent(m[1]) : ''; }
-
-if (/PEGA_AQUI/.test(APP_URL)) {
-  document.getElementById('estado').style.display = 'none';
-  texto.textContent = 'Falta poner el link de la app en index.html (APP_URL).';
-} else {
-  abrir(param('m'));
+window.addEventListener('popstate', function () { ISRA_MODULO(''); });
+if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+</script>
+<script>
+'use strict';
+var EN_APPS_SCRIPT = typeof google !== 'undefined' && google.script && google.script.run;
+var pin='', ocupado=false, identidad=null, pendiente=null, temporizador=null, version=0, vista='vPin';
+var $=function(id){return document.getElementById(id);};
+function tic(){
+ var d=new Date();
+ $('reloj').textContent=d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'America/Mexico_City'});
+ $('fecha').textContent=d.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',timeZone:'America/Mexico_City'});
 }
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+function pintarPuntos(){
+ var h='';for(var i=0;i<4;i++)h+='<div aria-hidden="true" class="punto'+(i<pin.length?' lleno':'')+'"></div>';
+ $('puntos').innerHTML=h;$('puntos').setAttribute('aria-label',pin.length+' de 4 dígitos');
+}
+function mostrar(id){vista=id;['vPin','vElegir','vListo'].forEach(function(v){$(v).classList.toggle('oculto',v!==id);});}
+function controles(){
+ document.querySelectorAll('#teclado button').forEach(function(b){b.disabled=ocupado;});
+ $('btnEntrada').disabled=ocupado || !!pendiente || !identidad || !identidad.puedeEntrada;
+ $('btnSalida').disabled=ocupado || !!pendiente || !identidad || !identidad.puedeSalida;
+ $('btnCambiar').disabled=ocupado;
+ $('btnReintentar').disabled=ocupado;
+ $('btnReintentar').hidden=!pendiente || ocupado;
+ $('cargando').classList.toggle('oculto',!(ocupado && vista==='vPin'));
+ $('guardando').classList.toggle('oculto',!(ocupado && vista==='vElegir'));
+}
+function tecla(t){
+ if(ocupado || vista!=='vPin')return;
+ $('error').textContent='';
+ if(t==='Borrar')pin=pin.slice(0,-1);else if(/^\d$/.test(t) && pin.length<4)pin+=t;
+ pintarPuntos();if(pin.length===4)enviarPin();
+}
+function armarTeclado(){
+ var h='';['1','2','3','4','5','6','7','8','9','Borrar','0',''].forEach(function(t){
+  h+=t?'<button type="button" class="tecla'+(t==='Borrar'?' chica':'')+'" data-t="'+t+'">'+t+'</button>':'<div></div>';
+ });$('teclado').innerHTML=h;
+ $('teclado').addEventListener('click',function(e){var t=e.target.getAttribute('data-t');if(t)tecla(t);});
+ document.addEventListener('keydown',function(e){if(vista!=='vPin')return;if(/^\d$/.test(e.key)||e.key==='Backspace'){e.preventDefault();tecla(e.key==='Backspace'?'Borrar':e.key);}});
+}
+function servidor(fn,args,ok,mal){
+ if(!EN_APPS_SCRIPT){mal({message:'Vista previa: abre el enlace /exec del checador para registrar.'});return;}
+ try{var r=google.script.run.withSuccessHandler(ok).withFailureHandler(mal);r[fn].apply(r,args);}catch(e){mal(e);}
+}
+function enviarPin(){
+ if(ocupado || pin.length!==4)return;
+ ocupado=true;var v=version, pinEnviado=pin;controles();
+ servidor('validarPin',[pinEnviado,CELULAR],function(res){
+  if(v!==version)return;ocupado=false;
+  if(!res || !res.ok){reiniciar();$('error').textContent=res&&res.msg || 'No se pudo validar el PIN.';return;}
+  identidad=res;pin=pinEnviado;
+  $('nombre').textContent=res.nombre;
+  $('ultimo').textContent=res.ultimo?'Última checada de esta jornada: '+res.ultimo.tipo.toLowerCase()+' a las '+res.ultimo.hora:'No tienes checadas en esta jornada.';
+  if(!res.puedeEntrada && !res.puedeSalida)$('ultimo').textContent+=' Jornada cerrada.';
+  if(res.por)$('ultimo').textContent+=' (Checando con el celular de '+res.por+'.)';
+  mostrar('vElegir');controles();
+ },function(e){if(v!==version)return;ocupado=false;reiniciar();$('error').textContent=e.message || 'Sin conexión, intenta otra vez.';});
+}
+// Identificador fijo de este celular (se guarda en el navegador). Si el navegador no deja guardarlo,
+// se usa uno temporal y el servidor rechazará la checada si la persona ya tiene celular registrado.
+var ISRA_APP={app:true,dev:DEV,nativo:true};
+// Dentro de la app instalada: los enlaces a otra parte de la app se piden a la app (no se sale a Chrome).
+if(ISRA_APP.app){
+ document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&e.target.closest('a[href]');if(!a)return;
+  var h=a.getAttribute('href')||'',base=APP_URL;if(!base||h.indexOf(base)!==0)return;e.preventDefault();
+  var m=(h.split('?')[1]||'').match(/(?:^|&)m=([^&]+)/);try{window.top.postMessage({isra:'ir',m:m?decodeURIComponent(m[1]):''},'*');}catch(x){}},true);
+ try{window.top.postMessage({isra:'listo'},'*');}catch(x){}
+}
+var CELULAR=(function(){
+ var id='';
+ if(ISRA_APP.dev){try{localStorage.setItem('isra_celular',ISRA_APP.dev);}catch(e){}return ISRA_APP.dev;}   // la app instalada manda su identificación fija
+ try{id=localStorage.getItem('isra_celular')||'';}catch(e){}
+ if(!/^[a-zA-Z0-9_-]{16,80}$/.test(id)){id=nuevoId();try{localStorage.setItem('isra_celular',id);}catch(e){}}
+ return id;
+})();
+function nuevoId(){
+ if(window.crypto && window.crypto.randomUUID)return window.crypto.randomUUID();
+ return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2)+'_'+Math.random().toString(36).slice(2);
+}
+// Pide la ubicación actual del celular (sin usar una guardada) y la entrega a listo(ubic) o falla(mensaje).
+function obtenerUbicacion(listo,falla){
+ if(!navigator.geolocation){falla('Este celular o navegador no permite leer la ubicación. Usa Chrome o Safari actualizado.');return;}
+ navigator.geolocation.getCurrentPosition(function(pos){
+  listo({lat:pos.coords.latitude,lng:pos.coords.longitude,precision:pos.coords.accuracy});
+ },function(err){
+  falla(err && err.code===1?'Necesitas permitir la ubicación para checar. Toca el candado o el ícono de ajustes junto a la dirección, permite Ubicación y reintenta.'
+   : err && err.code===3?'El GPS tardó demasiado. Reintenta en un momento.'
+   : 'No se pudo obtener tu ubicación. Activa el GPS del celular y reintenta.');
+ },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+}
+function registrar(tipo){
+ if(ocupado || !identidad || vista!=='vElegir')return;
+ if(!pendiente){
+  if(tipo==='ENTRADA'?!identidad.puedeEntrada:tipo==='SALIDA'?!identidad.puedeSalida:true)return;
+  pendiente={id:nuevoId(),tipo:tipo,pin:pin};
+ }
+ ocupado=true;$('errorRegistro').textContent='';$('guardando').textContent='Revisando tu ubicación…';controles();
+ var v=version, peticion=pendiente;
+ obtenerUbicacion(function(ubic){
+ if(v!==version)return;
+ $('guardando').textContent='Guardando checada…';
+ servidor('checar',[peticion.pin,peticion.tipo,peticion.id,ubic,CELULAR],function(res){
+  if(v!==version)return;ocupado=false;
+  if(!res || !res.ok){
+   if(!res || res.reintentar || res.ubicacion){$('errorRegistro').textContent=res&&res.msg || 'No se confirmó el registro. Reintenta la misma checada.';controles();return;}
+   reiniciar();$('error').textContent=res.msg;return;
+  }
+  pendiente=null;pin='';identidad=null;pintarPuntos();
+  $('tipoListo').textContent=res.repetida?'Ya estaba registrada':res.tipo==='ENTRADA'?'Entrada registrada':'Salida registrada';
+  $('horaListo').textContent=res.hora;$('msgListo').textContent=res.msg;mostrar('vListo');controles();
+  clearTimeout(temporizador);temporizador=setTimeout(function(){if(v===version)reiniciar();},8000);
+ },function(e){
+  if(v!==version)return;ocupado=false;
+  $('errorRegistro').textContent='No se confirmó la respuesta. Reintenta la misma checada; si ya se guardó, no se duplicará. '+(e.message || '');controles();
+ });
+ },function(msg){
+  if(v!==version)return;ocupado=false;$('errorRegistro').textContent=msg;controles();
+ });
+}
+function reiniciar(){
+ if(ocupado)return;
+ clearTimeout(temporizador);temporizador=null;version++;
+ pin='';identidad=null;pendiente=null;
+ ['error','errorRegistro','nombre','ultimo','horaListo','msgListo','tipoListo'].forEach(function(id){$(id).textContent='';});
+ pintarPuntos();mostrar('vPin');controles();
+}
+$('btnEntrada').onclick=function(){registrar('ENTRADA');};$('btnSalida').onclick=function(){registrar('SALIDA');};
+$('btnReintentar').onclick=function(){if(pendiente)registrar(pendiente.tipo);};
+$('btnCambiar').onclick=reiniciar;$('btnListo').onclick=reiniciar;
+armarTeclado();pintarPuntos();controles();tic();setInterval(tic,1000);
+</script>
+<script>
+// ===== CHECADAS SIN INTERNET (pegar justo antes de </body>) =====
+var COLA='isra_pendientes', RECHAZOS='isra_rechazadas', enviando=false;
+function leerLista(k){try{var v=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(v)?v:[];}catch(e){return [];}}
+function guardarLista(k,l){try{localStorage.setItem(k,JSON.stringify(l));return true;}catch(e){return false;}}
+function sinRed(e){var m=String(e&&e.message||e||'');return navigator.onLine===false||/network|red|conexi|HTTP 0|fetch|timeout|tiempo/i.test(m);}
+function horaTexto(ms){return new Date(ms).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'America/Mexico_City'});}
+var aviso=document.createElement('div');aviso.setAttribute('role','status');
+aviso.style.cssText='display:none;white-space:pre-line;margin-top:14px;padding:12px;border-radius:12px;background:#3a2f12;color:#f5d27a;font-size:15px;text-align:center';
+document.querySelector('main').insertBefore(aviso,$('vPin'));
+aviso.onclick=function(){if(leerLista(RECHAZOS).length){guardarLista(RECHAZOS,[]);pintarAviso();}};
+function pintarAviso(){
+ var c=leerLista(COLA).length, r=leerLista(RECHAZOS), t='';
+ if(c)t='📤 '+c+(c===1?' checada guardada':' checadas guardadas')+' en este celular. Se enviarán solas cuando haya internet. No cierres esta página.';
+ if(r.length)t+=(t?'\n':'')+'⚠️ No se guardaron: '+r.map(function(x){return x.hora+' '+x.tipo.toLowerCase()+' — '+x.msg;}).join(' | ')+' (Toca para ocultar.)';
+ aviso.textContent=t;aviso.style.display=t?'block':'none';
+}
+function encolar(it){
+ var l=leerLista(COLA);
+ if(!l.some(function(x){return x.id===it.id;}))l.push(it);
+ return guardarLista(COLA,l) && leerLista(COLA).some(function(x){return x.id===it.id;});
+}
+function quitarDeCola(id){guardarLista(COLA,leerLista(COLA).filter(function(x){return x.id!==id;}));}
+function enviarPendientes(){
+ if(enviando||!EN_APPS_SCRIPT||navigator.onLine===false){pintarAviso();return;}
+ var l=leerLista(COLA);if(!l.length){pintarAviso();return;}
+ var it=l[0];enviando=true;
+ google.script.run.withSuccessHandler(function(res){
+  enviando=false;
+  if(res&&!res.ok&&res.reintentar){pintarAviso();return;}
+  quitarDeCola(it.id);
+  if(!res||!res.ok){var r=leerLista(RECHAZOS);r.push({hora:horaTexto(it.ms),tipo:it.tipo,msg:(res&&res.msg)||'Error desconocido'});guardarLista(RECHAZOS,r.slice(-10));}
+  pintarAviso();enviarPendientes();
+ }).withFailureHandler(function(){enviando=false;pintarAviso();})
+ .checar(it.pin,it.tipo,it.id,it.ubic,it.celular,it.ms);
+}
+function modoSinInternet(p){
+ identidad={sinInternet:true,puedeEntrada:true,puedeSalida:true};pin=p;
+ $('nombre').textContent='Sin internet';
+ $('ultimo').textContent='Tu checada se guardará en este celular con la hora de ahora y se enviará sola cuando regrese la señal. Elige bien: ENTRADA o SALIDA.';
+ mostrar('vElegir');controles();
+}
+function enviarPin(){
+ if(ocupado||pin.length!==4)return;
+ var v=version,pinEnviado=pin;
+ if(navigator.onLine===false){modoSinInternet(pinEnviado);return;}
+ ocupado=true;controles();
+ if(typeof preInfo==='function')preInfo(pinEnviado,v);   // cuenta y rol se piden AL MISMO TIEMPO que el PIN (más rápido)
+ servidor('validarPin',[pinEnviado,CELULAR],function(res){
+  if(v!==version)return;ocupado=false;
+  if(!res||!res.ok){reiniciar();$('error').textContent=res&&res.msg||'No se pudo validar el PIN.';if(res&&/registrado en otro celular/.test(res.msg||''))ofrecerCambioCel(pinEnviado);if(res&&/^📸/.test(res.msg||''))ofrecerSelfie(pinEnviado);return;}
+  identidad=res;pin=pinEnviado;
+  $('nombre').textContent=res.nombre;
+  $('ultimo').textContent=res.ultimo?'Última checada de esta jornada: '+res.ultimo.tipo.toLowerCase()+' a las '+res.ultimo.hora:'No tienes checadas en esta jornada.';
+  if(!res.puedeEntrada&&!res.puedeSalida)$('ultimo').textContent+=' Jornada cerrada.';
+  if(res.por)$('ultimo').textContent+=' (Checando con el celular de '+res.por+'.)';
+  mostrar('vElegir');controles();cargarCuenta(pinEnviado,v);
+ },function(e){
+  if(v!==version)return;ocupado=false;
+  if(sinRed(e)){modoSinInternet(pinEnviado);return;}
+  reiniciar();$('error').textContent=e.message||'Sin conexión, intenta otra vez.';
+ });
+}
+// 📱 Se borró la app / cambió de celular o de navegador: pide el cambio y Esme o el patrón lo aprueban en 🔒.
+function ofrecerCambioCel(p){
+ var b=document.createElement('button');b.type='button';b.className='tecla chica';b.style.cssText='width:100%;margin-top:10px;font-size:16px;padding:12px';
+ b.textContent='📱 Cambié de celular o se me borró la app';$('error').appendChild(b);
+ b.onclick=function(){b.disabled=true;b.textContent='Enviando…';
+  servidor('pedirCambioCelular',[p,CELULAR],function(r){$('error').textContent=(r&&r.msg)||'No se pudo enviar.';},function(e){$('error').textContent=(e&&e.message)||'Sin conexión, intenta otra vez.';});};
+}
+// 📸 Celular nuevo: selfie con la cámara de enfrente → el cambio se hace solo (el patrón ve la foto).
+function ofrecerSelfie(p){
+ var inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.setAttribute('capture','user');inp.style.display='none';
+ var b=document.createElement('button');b.type='button';b.className='tecla chica';b.style.cssText='width:100%;margin-top:10px;font-size:18px;padding:14px';
+ b.textContent='📸 Tomar selfie';$('error').appendChild(b);$('error').appendChild(inp);
+ b.onclick=function(){inp.click();};
+ inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;b.disabled=true;b.textContent='Enviando foto…';
+  reducirFoto(f,640,function(b64){
+   if(!b64){b.disabled=false;b.textContent='📸 Tomar selfie';return;}
+   servidor('cambioCelularSelfie',[p,CELULAR,b64],function(r){
+    if(r&&r.ok){$('error').textContent='✅ '+r.msg+' Pon tu PIN otra vez para checar.';}
+    else{$('error').textContent=(r&&r.msg)||'No se pudo.';if(r&&/registrado en otro celular/.test(r.msg||''))ofrecerCambioCel(p);}
+   },function(e){b.disabled=false;b.textContent='📸 Tomar selfie';$('error').firstChild.textContent=(e&&e.message)||'Sin conexión, intenta otra vez.';});
+  });};
+}
+function reducirFoto(file,max,listo){
+ var url=URL.createObjectURL(file),img=new Image();
+ img.onload=function(){var e=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement('canvas');
+  c.width=Math.round(img.width*e);c.height=Math.round(img.height*e);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
+  listo(c.toDataURL('image/jpeg',0.75).split(',')[1]);};
+ img.onerror=function(){URL.revokeObjectURL(url);listo('');};
+ img.src=url;
+}
+function guardarSinInternet(pet,ubic,v){
+ ocupado=false;
+ if(!encolar({id:pet.id,tipo:pet.tipo,pin:pet.pin,ubic:ubic,celular:CELULAR,ms:pet.ms})){
+  $('errorRegistro').textContent='No hay internet y este navegador no deja guardar la checada. Avisa al encargado.';controles();return;
+ }
+ pendiente=null;pin='';identidad=null;pintarPuntos();
+ $('tipoListo').textContent=(pet.tipo==='ENTRADA'?'Entrada':'Salida')+' guardada en el celular';
+ $('horaListo').textContent=horaTexto(pet.ms);
+ $('msgListo').textContent='Sin internet. Se enviará sola cuando regrese la señal. No cierres esta página.';
+ mostrar('vListo');controles();pintarAviso();
+ clearTimeout(temporizador);temporizador=setTimeout(function(){if(v===version)reiniciar();},8000);
+}
+function registrar(tipo){
+ if(ocupado||!identidad||vista!=='vElegir')return;
+ if(!pendiente){
+  if(tipo==='ENTRADA'?!identidad.puedeEntrada:tipo==='SALIDA'?!identidad.puedeSalida:true)return;
+  pendiente={id:nuevoId(),tipo:tipo,pin:pin,ms:Date.now()};
+ }
+ ocupado=true;$('errorRegistro').textContent='';$('guardando').textContent='Revisando tu ubicación…';controles();
+ var v=version,pet=pendiente;
+ obtenerUbicacion(function(ubic){
+  if(v!==version)return;
+  if(identidad.sinInternet||navigator.onLine===false){guardarSinInternet(pet,ubic,v);return;}
+  $('guardando').textContent='Guardando checada…';
+  servidor('checar',[pet.pin,pet.tipo,pet.id,ubic,CELULAR],function(res){
+   if(v!==version)return;ocupado=false;
+   if(!res||!res.ok){
+    if(!res||res.reintentar||res.ubicacion){$('errorRegistro').textContent=res&&res.msg||'No se confirmó el registro. Reintenta la misma checada.';controles();return;}
+    reiniciar();$('error').textContent=res.msg;return;
+   }
+   pendiente=null;pin='';identidad=null;pintarPuntos();
+   $('tipoListo').textContent=res.repetida?'Ya estaba registrada':res.tipo==='ENTRADA'?'Entrada registrada':'Salida registrada';
+   $('horaListo').textContent=res.hora;$('msgListo').textContent=res.msg+(typeof textoPuestoHoy==='function'&&res.tipo==='ENTRADA'?textoPuestoHoy():'');mostrar('vListo');controles();
+   clearTimeout(temporizador);temporizador=setTimeout(function(){if(v===version)reiniciar();},8000);
+  },function(e){
+   if(v!==version)return;
+   if(sinRed(e)){guardarSinInternet(pet,ubic,v);return;}
+   ocupado=false;
+   $('errorRegistro').textContent='No se confirmó la respuesta. Reintenta la misma checada; si ya se guardó, no se duplicará. '+(e.message||'');controles();
+  });
+ },function(msg){if(v!==version)return;ocupado=false;$('errorRegistro').textContent=msg;controles();});
+}
+window.addEventListener('online',function(){setTimeout(enviarPendientes,2000);});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)enviarPendientes();});
+setInterval(enviarPendientes,30000);
+pintarAviso();enviarPendientes();
+</script>
+<script>
+// ===== BOTÓN 🔒 DEUDAS Y DESCUENTOS (solo aparece en el celular del patrón o de la encargada) =====
+(function(){
+ var URL_APP=APP_URL;
+ var b=document.createElement('a');b.href=URL_APP+'?m=deudas';b.target='_top';b.textContent='🔒 Deudas y descuentos';
+ b.style.cssText='display:none;margin-top:22px;text-align:center;padding:14px;border:1px solid var(--line);border-radius:14px;color:var(--oro);text-decoration:none;font-weight:700';
+ document.querySelector('main').appendChild(b);
+ function mostrarBoton(){b.style.display='block';}
+ if(EN_APPS_SCRIPT)google.script.run.withSuccessHandler(function(si){if(si)mostrarBoton();}).withFailureHandler(function(){}).deudasEsAdmin(CELULAR);
+ // Primera vez, cuando el celular todavía no está registrado: tocar 5 veces el reloj.
+ var toques=0,t0=0;$('reloj').addEventListener('click',function(){var n=Date.now();if(n-t0>3000)toques=0;t0=n;if(++toques>=5)mostrarBoton();});
+})();
+</script>
+<script>
+// ===== MI CUENTA: el colaborador ve lo que se le descontará esta semana (solo la suya, después de su PIN) =====
+var cuenta=document.createElement('div');cuenta.id='miCuenta';cuenta.setAttribute('role','status');
+cuenta.style.cssText='text-align:left;margin:0 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:15px';
+$('btnEntrada').parentNode.insertBefore(cuenta,$('btnEntrada'));cuenta.style.display='none';
+var NOMB={DEUDA:'Ticket',VALE:'Vale',INCIDENCIA:'Reporte',AJUSTE:'Ajuste',RETARDOS:'Retardos'};
+function pesos(n){n=Number(n)||0;return (n<0?'-':'')+'$'+Math.abs(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function escH(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+// Cuenta y rol llegan en UNA sola llamada al servidor (miInfo) para que cargue más rápido.
+function cargarCuenta(p,v){
+ cuenta.style.display='none';cuenta.innerHTML='';
+ if(typeof rolCaja!=='undefined'){rolCaja.style.display='none';rolCaja.innerHTML='';ROL_HOY=null;}
+ if(typeof carnesCaja!=='undefined'){carnesCaja.style.display='none';carnesCaja.innerHTML='';}
+ if(!EN_APPS_SCRIPT)return;
+ var pintarInfo=function(x){
+  if(v!==version||!x)return;
+  pintarCuenta(x.cuenta);if(typeof pintarRol==='function')pintarRol(x.rol);if(typeof pintarCarnes==='function')pintarCarnes(x.carnes);
+ };
+ if(INFO_PRE&&INFO_PRE.v===v&&INFO_PRE.p===p){if(INFO_PRE.listo)pintarInfo(INFO_PRE.res);else INFO_PRE.cb=pintarInfo;return;}
+ google.script.run.withSuccessHandler(pintarInfo).withFailureHandler(function(){}).miInfo(p,CELULAR);
+}
+var INFO_PRE=null;
+function preInfo(p,v){
+ if(!EN_APPS_SCRIPT)return;var me={v:v,p:p,listo:false,res:null,cb:null};INFO_PRE=me;
+ google.script.run.withSuccessHandler(function(x){me.listo=true;me.res=x;if(me.cb)me.cb(x);})
+  .withFailureHandler(function(){me.listo=true;me.res=null;}).miInfo(p,CELULAR);
+}
+function pintarCuenta(r){
+  if(!r||!r.ok)return;
+  var h='<div style="font-weight:800;margin-bottom:6px">Tu cuenta de esta semana</div>';
+  if(!r.conceptos.length&&!r.prestamos.length){h+='<div style="color:var(--sub)">No tienes descuentos esta semana ✅</div>';}
+  else{
+   h+=r.conceptos.map(function(c){return '<div style="display:flex;justify-content:space-between;gap:8px"><span>'+escH(NOMB[c.tipo]||c.tipo)+': '+escH(c.concepto)+'</span><span>'+(c.total?pesos(c.total):'—')+'</span></div>';}).join('');
+   h+=r.prestamos.map(function(p){return '<div style="display:flex;justify-content:space-between;gap:8px"><span>Abono préstamo: '+escH(p.concepto)+' (te quedan '+pesos(p.saldo)+')</span><span>'+pesos(p.estaSemana)+'</span></div>';}).join('');
+   h+='<div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:6px;padding-top:6px;font-weight:800"><span>Total a descontar</span><span>'+pesos(r.total)+'</span></div>';
+  }
+  cuenta.innerHTML=h;cuenta.style.display='block';
 }
 </script>
-</body>
-</html>
+<script>
+// ===== MI ROL: lo que publicó el patrón en 🧩 Acomodo (solo lo publicado; si no hay, "ROL PENDIENTE") =====
+var rolCaja=document.createElement('div');rolCaja.id='miRol';rolCaja.setAttribute('role','status');
+rolCaja.style.cssText='text-align:left;margin:0 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:15px;display:none';
+$('btnEntrada').parentNode.insertBefore(rolCaja,$('btnEntrada'));
+var ROL_HOY=null;
+function fechaRol(f){var p=String(f).split('-');return +p[2]+' '+['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+p[1]-1];}
+function textoPuestoHoy(){return ROL_HOY&&ROL_HOY.t==='TRABAJA'?' Hoy te corresponde: '+ROL_HOY.puesto+', en '+ROL_HOY.area+'.':ROL_HOY&&ROL_HOY.t==='DESCANSO'?' Ojo: según tu rol hoy descansas.':'';}
+function pintarRol(r){
+  if(!r||!r.ok)return;
+  var h='';
+  if(r.avisos&&r.avisos.length)h+='<div style="background:#3a2f12;color:#f5d27a;border-radius:10px;padding:8px;margin-bottom:8px">🔔 '+r.avisos.map(function(t){return escR(t).split(' · ').join('<br>');}).join('<br>🔔 ')+'</div>';
+  if(r.pendiente){h+='<div style="font-weight:800">📋 ROL PENDIENTE DE CONFIRMACIÓN</div><div style="color:var(--sub)">Todavía no hay rol publicado para hoy.</div>';}
+  else{
+   var x=r.hoy;ROL_HOY=x;
+   if(x.t==='TRABAJA')h+='<div style="font-weight:800">Hoy te toca: '+escR(x.puesto)+' en '+escR(x.area)+'</div><div>Entrada '+escR(x.ent)+' · salida '+escR(x.sal)+'</div>';
+   else if(x.t==='DESCANSO')h+='<div style="font-weight:800;font-size:18px;color:#f5d27a">😴 HOY TE CORRESPONDE DESCANSO</div><div style="color:var(--sub)">No tienes que checar entrada.</div>';
+   else h+='<div style="font-weight:800">Hoy: '+escR(x.t)+'</div>';
+  }
+  if(r.proximoDescanso)h+='<div style="margin-top:6px">Próximo descanso: <strong>'+escR(r.proximoDescanso.dia)+' '+fechaRol(r.proximoDescanso.fecha)+'</strong></div>';
+  var dias=(r.dias||[]).filter(function(d){return d.publicado;});
+  if(dias.length)h+='<details style="margin-top:6px"><summary>Tus próximos 7 días</summary>'+dias.map(function(d){return '<div style="display:flex;justify-content:space-between;gap:8px"><span>'+escR(d.dia)+' '+fechaRol(d.fecha)+'</span><span>'+(d.t==='TRABAJA'?escR(d.puesto)+' · '+escR(d.area)+' '+escR(d.ent):d.t==='DESCANSO'?(d.fijo?'🔒 ':'')+'Descanso':escR(d.t||'—'))+'</span></div>';}).join('')+'</details>';
+  rolCaja.innerHTML=h;rolCaja.style.display='block';
+}
+function escR(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+</script>
+<script>
+// ===== GPS RÁPIDO: empieza a buscar la ubicación desde que tocan el primer número del PIN =====
+// Al tocar ENTRADA/SALIDA usa la última ubicación si tiene menos de 60 s y es precisa; si no, la pide como antes.
+// Se apaga sola 3 minutos después del último uso para no gastar batería.
+var GPS={pos:null,watch:null,apagar:null};
+function gpsIniciar(){
+ clearTimeout(GPS.apagar);GPS.apagar=setTimeout(gpsApagar,180000);
+ if(GPS.watch!==null||!navigator.geolocation)return;
+ try{GPS.watch=navigator.geolocation.watchPosition(function(p){
+  GPS.pos={lat:p.coords.latitude,lng:p.coords.longitude,precision:p.coords.accuracy,t:Date.now()};
+ },function(){},{enableHighAccuracy:true,maximumAge:5000,timeout:30000});}catch(e){GPS.watch=null;}
+}
+function gpsApagar(){if(GPS.watch!==null){try{navigator.geolocation.clearWatch(GPS.watch);}catch(e){}}GPS.watch=null;}
+$('teclado').addEventListener('click',gpsIniciar);
+function obtenerUbicacion(listo,falla){
+ if(!navigator.geolocation){falla('Este celular o navegador no permite leer la ubicación. Usa Chrome o Safari actualizado.');return;}
+ gpsIniciar();
+ var p=GPS.pos;
+ if(p&&Date.now()-p.t<60000&&p.precision<=100){listo({lat:p.lat,lng:p.lng,precision:p.precision});return;}
+ navigator.geolocation.getCurrentPosition(function(pos){
+  GPS.pos={lat:pos.coords.latitude,lng:pos.coords.longitude,precision:pos.coords.accuracy,t:Date.now()};
+  listo({lat:pos.coords.latitude,lng:pos.coords.longitude,precision:pos.coords.accuracy});
+ },function(err){
+  falla(err&&err.code===1?'Necesitas permitir la ubicación para checar. Toca el candado o el ícono de ajustes junto a la dirección, permite Ubicación y reintenta.'
+   :err&&err.code===3?'El GPS tardó demasiado. Reintenta en un momento.'
+   :'No se pudo obtener tu ubicación. Activa el GPS del celular y reintenta.');
+ },{enableHighAccuracy:true,timeout:20000,maximumAge:15000});
+}
+</script>
+<script>
+// ===== CARNES (miércoles en CEDIS): botones 🥩 solo para quien le toca. Sin retardo. Necesita internet. =====
+var carnesCaja=document.createElement('div');carnesCaja.id='miCarnes';carnesCaja.setAttribute('role','status');
+carnesCaja.style.cssText='text-align:left;margin:0 0 14px;padding:12px;border:2px solid #b8860b;border-radius:12px;font-size:15px;display:none';
+(function(){var antes=$('miCuenta')||$('btnEntrada');antes.parentNode.insertBefore(carnesCaja,antes);})();   // arriba de todo: es lo más urgente ese día
+var CARNES=null;
+function pintarCarnes(c){
+ CARNES=c;carnesCaja.style.display='none';carnesCaja.innerHTML='';if(!c)return;
+ var yaEntro=/^Entró/.test(c.detalle||''),yaSalio=/salió/.test(c.detalle||'');
+ var h='<div style="font-weight:800">🥩 Hoy hay CARNES en '+escR(c.lugar)+' · '+escR(c.ent)+' a '+escR(c.sal)+'</div>';
+ if(c.estado==='CHECÓ')h+='<div style="color:#8fe0ad">✅ '+escR(c.detalle)+'</div>';
+ else if(c.estado==='JUSTIFICADO')h+='<div style="color:var(--sub)">No te toca hoy ('+escR(c.detalle)+').</div>';
+ else h+=c.cerrado?'<div style="color:#ff9793">No checaste carnes. Se descuentan $'+escR(c.monto)+'.</div>':'<div style="color:#f5d27a">Checa tu entrada a carnes en '+escR(c.lugar)+'. Si no checas, se descuentan $'+escR(c.monto)+'.</div>';
+ h+='<div style="display:flex;gap:8px;margin-top:8px">';
+ if(!yaEntro&&c.estado!=='JUSTIFICADO'&&c.estado!=='CHECÓ'&&!c.cerrado)h+='<button type="button" id="btnCarnesE" style="flex:1;padding:12px;border-radius:12px;border:0;background:#b8860b;color:#1b1408;font-weight:800;font-size:16px">🥩 Entrar a carnes</button>';
+ if(yaEntro&&!yaSalio)h+='<button type="button" id="btnCarnesS" style="flex:1;padding:12px;border-radius:12px;border:1px solid #b8860b;background:transparent;color:#f5d27a;font-weight:800;font-size:16px">🥩 Salir de carnes</button>';
+ h+='</div><div id="carnesError" style="color:#ff9793;margin-top:6px"></div>';
+ carnesCaja.innerHTML=h;carnesCaja.style.display='block';
+ if($('btnCarnesE'))$('btnCarnesE').onclick=function(){checarCarnesUI('ENTRADA');};
+ if($('btnCarnesS'))$('btnCarnesS').onclick=function(){checarCarnesUI('SALIDA');};
+}
+var CARNES_PET=null;
+function checarCarnesUI(tipo){
+ if(ocupado||!pin)return;
+ if(navigator.onLine===false){$('carnesError').textContent='Carnes necesita internet. En el CEDIS hay wifi.';return;}
+ if(!CARNES_PET||CARNES_PET.tipo!==tipo)CARNES_PET={id:nuevoId(),tipo:tipo};
+ ocupado=true;controles();$('carnesError').textContent='Revisando tu ubicación…';
+ var v=version,pet=CARNES_PET,p=pin;
+ obtenerUbicacion(function(ubic){
+  if(v!==version)return;$('carnesError').textContent='Guardando…';
+  google.script.run.withSuccessHandler(function(res){
+   if(v!==version)return;ocupado=false;controles();
+   if(!res||!res.ok){$('carnesError').textContent=(res&&res.msg)||'No se pudo. Reintenta.';if(res&&!res.reintentar&&!res.ubicacion)CARNES_PET=null;return;}
+   CARNES_PET=null;pin='';identidad=null;pintarPuntos();
+   $('tipoListo').textContent=tipo==='ENTRADA'?'🥩 Entrada a carnes':'🥩 Salida de carnes';
+   $('horaListo').textContent=res.hora||'';$('msgListo').textContent=res.msg;mostrar('vListo');controles();
+   clearTimeout(temporizador);temporizador=setTimeout(function(){if(v===version)reiniciar();},8000);
+  }).withFailureHandler(function(e){if(v!==version)return;ocupado=false;controles();$('carnesError').textContent='No se confirmó. Reintenta (no se duplica). '+((e&&e.message)||'');})
+  .checarCarnes(p,tipo,pet.id,ubic,CELULAR);
+ },function(msg){if(v!==version)return;ocupado=false;controles();$('carnesError').textContent=msg;});
+}
+</script>
+
+<iframe id="modulo" title="Isra" allow="geolocation *; camera *; microphone *; clipboard-write *; fullscreen *"></iframe>
+<div id="moduloPortada"><img src="icon-192.png" alt=""><div>Abriendo…</div></div>
+<script>(function(){var m=(location.search.match(/[?&]m=([^&]+)/)||[])[1];if(m)ISRA_MODULO(decodeURIComponent(m));})();</script>
+</body></html>
