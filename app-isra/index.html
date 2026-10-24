@@ -123,10 +123,14 @@ function ISRA_MODULO(m) {
 }
 window.addEventListener('message', function (e) {
   var d = e.data; if (!d || typeof d !== 'object' || !d.isra) return;
-  if (d.isra === 'listo' && e.source !== window) { MOD_LISTO = true; document.getElementById('moduloPortada').style.display = 'none'; }
+  if (d.isra === 'listo' && e.source !== window) { MOD_LISTO = true; document.getElementById('moduloPortada').style.display = 'none'; if (MOD_ACTUAL) ISRA_ENFOCAR(); }
   if (d.isra === 'ir') { if (d.m) ISRA_MODULO(d.m); else { if (history.state && history.state.modulo) history.back(); else ISRA_MODULO(''); } }
 });
 window.addEventListener('popstate', function () { if (MOD_ACTUAL) ISRA_MODULO(''); });
+// En la PC de bodega el lector escribe como teclado: el teclado siempre debe ir a la pantalla de adentro.
+function ISRA_ENFOCAR() { var f = document.getElementById('modulo'); if (!f || !MOD_ACTUAL) return; try { f.focus(); if (f.contentWindow) f.contentWindow.focus(); } catch (e) {} }
+document.addEventListener('keydown', function () { if (MOD_ACTUAL) ISRA_ENFOCAR(); }, true);
+window.addEventListener('focus', function () { if (MOD_ACTUAL) setTimeout(ISRA_ENFOCAR, 50); });
 // ¿Es el celular del patrón o la encargada? Entonces se precarga el 🔒 (los colaboradores no gastan datos en esto).
 window.addEventListener('load', function () {
   setTimeout(function () { ISRA_LLAMAR('deudasEsAdmin', [DEV]).then(function (si) { if (si) ISRA_PRECARGAR('deudas'); }, function () {}); }, 800);
