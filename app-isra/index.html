@@ -129,7 +129,14 @@ window.addEventListener('message', function (e) {
 window.addEventListener('popstate', function () { if (MOD_ACTUAL) ISRA_MODULO(''); });
 // En la PC de bodega el lector escribe como teclado: el teclado siempre debe ir a la pantalla de adentro.
 function ISRA_ENFOCAR() { var f = document.getElementById('modulo'); if (!f || !MOD_ACTUAL) return; try { f.focus(); if (f.contentWindow) f.contentWindow.focus(); } catch (e) {} }
-document.addEventListener('keydown', function () { if (MOD_ACTUAL) ISRA_ENFOCAR(); }, true);
+document.addEventListener('keydown', function (e) {
+  if (!MOD_ACTUAL) return;
+  // El teclado se quedó afuera (pasa al prender la compu): la tecla se manda a la pantalla de adentro y el teclado se pasa para allá.
+  var f = document.getElementById('modulo');
+  if (f && f.contentWindow && MOD_ACTUAL === 'bodega') { try { f.contentWindow.postMessage({isra: 'tecla', k: e.key}, '*'); } catch (x) {} e.preventDefault(); }
+  ISRA_ENFOCAR();
+}, true);
+setInterval(function () { if (MOD_ACTUAL === 'bodega' && document.hasFocus() && document.activeElement !== document.getElementById('modulo')) ISRA_ENFOCAR(); }, 2000);
 window.addEventListener('focus', function () { if (MOD_ACTUAL) setTimeout(ISRA_ENFOCAR, 50); });
 // ¿Es el celular del patrón o la encargada? Entonces se precarga el 🔒 (los colaboradores no gastan datos en esto).
 window.addEventListener('load', function () {
