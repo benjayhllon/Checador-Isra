@@ -69,13 +69,13 @@ button{cursor:pointer}button:disabled{opacity:.4;cursor:wait}button:focus-visibl
 <script src="config.js"></script>
 <script>
 var APP_URL = window.ISRA_URL || '';   // el link /exec se pone en config.js (una sola vez)
-var DEV = (function () {   // identificación fija de este celular (no se pierde)
-  var id = '';
+var DEV = (function () {   // identificación fija de este celular: se guarda en 2 lugares (si uno se borra, el otro la recupera)
+  var ok = function (x) { return /^[a-zA-Z0-9_-]{16,80}$/.test(x || ''); }, id = '';
   try { id = localStorage.getItem('isra_dev') || ''; } catch (e) {}
-  if (!/^[a-zA-Z0-9_-]{16,80}$/.test(id)) {
-    id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + '_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
-    try { localStorage.setItem('isra_dev', id); } catch (e) {}
-  }
+  if (!ok(id)) { var m = document.cookie.match(/(?:^|; )isra_dev=([a-zA-Z0-9_-]{16,80})/); if (m) id = m[1]; }
+  if (!ok(id)) id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + '_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+  try { localStorage.setItem('isra_dev', id); } catch (e) {}
+  try { document.cookie = 'isra_dev=' + id + '; max-age=34560000; path=/; SameSite=Lax; Secure'; } catch (e) {}
   return id;
 })();
 // Con señal débil no se espera de más: el PIN se revisa máximo 12 s y la checada 15 s; luego se guarda en el celular.
@@ -452,12 +452,19 @@ function registrar(tipo){
 }
 window.addEventListener('online',function(){setTimeout(enviarPendientes,2000);});
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
-// 📲 Abrieron el link viejo (no la app): se les invita a instalar la app nueva.
-(function(){if(ISRA_APP.app||!EN_APPS_SCRIPT)return;
- var a=document.createElement('a');a.href='https://benjayhllon.github.io/Checador-Isra/app-isra/';a.target='_blank';a.rel='noopener';
- a.textContent='📲 Ya hay app nueva de Isra: abre más rápido y checa sin internet. Toca aquí para instalarla.';
- a.style.cssText='display:block;margin-top:12px;padding:12px;border-radius:12px;background:#12301f;color:#9fe3b8;font-size:15px;text-align:center;text-decoration:none;font-weight:700';
- document.querySelector('main').insertBefore(a,$('vPin'));})();
+// 📲 Abrieron el link viejo (no la app). Ese link pierde la identificación del celular cada vez que se actualiza
+// el sistema (por eso pedía selfie a cada rato). Se les pide abrir la app nueva; solo en emergencia pueden seguir aquí.
+(function(){if(ISRA_APP.app||!EN_APPS_SCRIPT||!document.body)return;
+ var URL_NUEVA='https://benjayhllon.github.io/Checador-Isra/app-isra/';
+ var v=document.createElement('div');v.id='linkViejo';
+ v.style.cssText='position:fixed;inset:0;z-index:30;background:#16120f;color:#f2ece4;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:28px;gap:14px';
+ v.innerHTML='<div style="font-size:64px">📲</div><div style="font-size:26px;font-weight:800">Este link ya no se usa</div>'+
+  '<div style="color:#b9b0a5;font-size:17px;max-width:420px">Checa desde la <b style="color:#f2ece4">app Isra</b>. Con este link viejo te pide selfie a cada rato.</div>'+
+  '<a href="'+URL_NUEVA+'" target="_top" style="display:block;width:100%;max-width:420px;padding:18px;border-radius:16px;background:#e0b04a;color:#1b1408;font-size:20px;font-weight:800;text-decoration:none">Abrir la app Isra</a>'+
+  '<div style="color:#b9b0a5;font-size:14px;max-width:420px">¿No la tienes? Ábrela con el botón y ponla en tu pantalla: Android ⋮ → <b>Instalar app</b> · iPhone ⬆ → <b>Agregar a pantalla de inicio</b>. Después borra el ícono viejo.</div>'+
+  '<button type="button" id="lvSeguir" style="margin-top:10px;background:transparent;border:0;color:#8a8178;text-decoration:underline;font-size:14px">Emergencia: checar aquí solo esta vez</button>';
+ document.body.appendChild(v);
+ document.getElementById('lvSeguir').onclick=function(){v.parentNode.removeChild(v);};})();
 document.addEventListener('visibilitychange',function(){if(!document.hidden)enviarPendientes();});
 setInterval(enviarPendientes,30000);
 pintarAviso();enviarPendientes();
