@@ -80,7 +80,12 @@ var DEV = (function () {   // identificación fija de este celular: se guarda en
 })();
 // Con señal débil no se espera de más: el PIN se revisa máximo 12 s y la checada 15 s; luego se guarda en el celular.
 var ISRA_ESPERA = {validarPin: 12000, checar: 15000, cambioCelularSelfie: 45000};
+var ISRA_ADMIN_P = null;   // "¿es celular de patrón/encargada?" se pregunta UNA vez por arranque
 function ISRA_LLAMAR(fn, args) {
+  if (fn === 'deudasEsAdmin') return ISRA_ADMIN_P || (ISRA_ADMIN_P = ISRA_LLAMAR0(fn, args).then(null, function (e) { ISRA_ADMIN_P = null; throw e; }));
+  return ISRA_LLAMAR0(fn, args);
+}
+function ISRA_LLAMAR0(fn, args) {
   var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (ctl) ctl.abort(); }, ISRA_ESPERA[fn] || 30000);
   var red = function (e) { clearTimeout(t); throw new Error(e && e.name === 'AbortError' ? 'Se agotó el tiempo de espera (timeout).' : 'Sin conexión: revisa tu internet (network).'); };
   return fetch(APP_URL, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify({fn: fn, args: args}), redirect: 'follow', signal: ctl ? ctl.signal : undefined})
@@ -296,8 +301,10 @@ aviso.style.cssText='display:none;white-space:pre-line;margin-top:14px;padding:1
 document.querySelector('main').insertBefore(aviso,$('vPin'));
 aviso.onclick=function(){if(leerLista(RECHAZOS).length){guardarLista(RECHAZOS,[]);pintarAviso();}};
 function pintarAviso(){
- var c=leerLista(COLA).length, r=leerLista(RECHAZOS), t='';
+ var cola=leerLista(COLA), c=cola.length, r=leerLista(RECHAZOS), t='';
  if(c)t='📤 '+c+(c===1?' checada guardada':' checadas guardadas')+' en este celular. Se envían solas cuando haya internet. Si cierras la app, ábrela cuando tengas señal (antes de 3 días).';
+ // Con internet y aun así no se envían en 2 horas: algo pasa con el servidor. Que avisen (no se borra nada).
+ if(c&&navigator.onLine!==false&&cola.some(function(x){return Date.now()-x.ms>2*3600000;}))t+='\n⚠️ Hay checadas que no se han podido enviar desde hace más de 2 horas aunque hay internet. Avisa al encargado y NO borres la app.';
  if(r.length)t+=(t?'\n':'')+'⚠️ No se guardaron: '+r.map(function(x){return x.hora+' '+x.tipo.toLowerCase()+' — '+x.msg;}).join(' | ')+' (Toca para ocultar.)';
  aviso.textContent=t;aviso.style.display=t?'block':'none';
 }
@@ -314,14 +321,14 @@ function enviarPendientes(){
  var it=l[0];enviando=true;
  google.script.run.withSuccessHandler(function(res){
   enviando=false;
-  if(res&&!res.ok&&res.reintentar){if(!contarIntento(it,res.msg)){pintarAviso();terminarEnvio();return;}}
+  if(res&&!res.ok&&res.reintentar){if(!contarIntento(it,res.msg)){pintarAviso();terminarEnvio();return;}pintarAviso();enviarPendientes();return;}
   quitarDeCola(it.id);
   if(!res||!res.ok){var r=leerLista(RECHAZOS);r.push({hora:horaTexto(it.ms),tipo:it.tipo,msg:(res&&res.msg)||'Error desconocido'});guardarLista(RECHAZOS,r.slice(-10));}
   pintarAviso();enviarPendientes();
  }).withFailureHandler(function(e){enviando=false;
   if(!sinRed(e)&&contarIntento(it,(e&&e.message)||'Error del servidor')){pintarAviso();enviarPendientes();return;}
   pintarAviso();terminarEnvio();})
- .checar(it.pin,it.tipo,it.id,it.ubic,it.celular,it.ms);
+ .checar(it.pin,it.tipo,it.id,it.ubic,it.celular,it.ms,Date.now());
 }
 // Una checada que el servidor no puede guardar (error raro) se reintenta 6 veces; luego se avisa y se sigue con las demás.
 function contarIntento(it,m){
@@ -333,8 +340,10 @@ function contarIntento(it,m){
 // c) Antes de revisar un PIN se mandan primero las checadas guardadas (así la SALIDA no se bloquea por una ENTRADA guardada).
 var ESPERAN=[];
 function terminarEnvio(){var l=ESPERAN;ESPERAN=[];l.forEach(function(f){try{f();}catch(e){}});}
-function vaciarCola(listo){
- if(!leerLista(COLA).length||navigator.onLine===false||!EN_APPS_SCRIPT){listo();return;}
+function vaciarCola(listo,elPin){
+ var cola=leerLista(COLA);
+ if(cola.length&&elPin&&!cola.some(function(x){return x.pin===elPin;})&&navigator.onLine!==false&&EN_APPS_SCRIPT){enviarPendientes();listo();return;}   // las guardadas son de otra persona: se mandan sin hacerte esperar
+ if(!cola.length||navigator.onLine===false||!EN_APPS_SCRIPT){listo();return;}
  var ya=false,fin=function(){if(ya)return;ya=true;clearTimeout(t);listo();},t=setTimeout(fin,20000);
  ESPERAN.push(fin);enviarPendientes();
 }
@@ -356,7 +365,7 @@ function enviarPin(){
  var v=version,pinEnviado=pin;
  if(navigator.onLine===false){modoSinInternet(pinEnviado);return;}
  ocupado=true;controles();
- if(leerLista(COLA).length){$('cargando').textContent='Enviando checadas guardadas…';vaciarCola(function(){$('cargando').textContent='Revisando…';if(v!==version)return;validar();});return;}
+ if(leerLista(COLA).length){$('cargando').textContent='Enviando checadas guardadas…';vaciarCola(function(){$('cargando').textContent='Revisando…';if(v!==version)return;validar();},pinEnviado);return;}
  validar();
  function validar(){
  if(typeof preInfo==='function')preInfo(pinEnviado,v);   // cuenta y rol se piden AL MISMO TIEMPO que el PIN (más rápido)
@@ -561,7 +570,13 @@ function gpsIniciar(){
 }
 function gpsApagar(){if(GPS.watch!==null){try{navigator.geolocation.clearWatch(GPS.watch);}catch(e){}}GPS.watch=null;}
 $('teclado').addEventListener('click',gpsIniciar);
-function obtenerUbicacion(listo,falla){
+// Al terminar una checada se apaga el GPS (ahorra batería; se vuelve a prender al tocar el PIN).
+(function(){var m0=mostrar;mostrar=function(id){m0.apply(this,arguments);if(id==='vListo')setTimeout(gpsApagar,1500);};})();
+function obtenerUbicacion(listo0,falla0){
+ // Seguro de 25 s: en algunos celulares el GPS nunca contesta (ni con error) y la pantalla se quedaba atorada.
+ var hecho=false,perro=setTimeout(function(){fin(falla0,'El GPS no respondió. Revisa que la ubicación esté activada y permitida, y reintenta.');},25000);
+ function fin(f,x){if(hecho)return;hecho=true;clearTimeout(perro);f(x);}
+ var listo=function(u){fin(listo0,u);},falla=function(m){fin(falla0,m);};
  if(!navigator.geolocation){falla('Este celular o navegador no permite leer la ubicación. Usa Chrome o Safari actualizado.');return;}
  gpsIniciar();
  var p=GPS.pos;
